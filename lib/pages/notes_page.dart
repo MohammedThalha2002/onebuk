@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -70,10 +71,12 @@ class _NotesAppState extends State<NotesApp> {
     });
   }
 
-  GlobalKey _globalkey = GlobalKey();
-  Future<void> save() async {
-    final RenderRepaintBoundary boundary =
-        _globalkey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+  GlobalKey _TransparentGlobalkey = GlobalKey();
+  GlobalKey _WithBackgroungGlobalkey = GlobalKey();
+
+  Future<void> saveTransparentImage() async {
+    final RenderRepaintBoundary boundary = _TransparentGlobalkey.currentContext!
+        .findRenderObject() as RenderRepaintBoundary;
     ui.Image image = await boundary.toImage();
     ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     Uint8List pngBytes = byteData!.buffer.asUint8List();
@@ -86,6 +89,24 @@ class _NotesAppState extends State<NotesApp> {
         Uint8List.fromList(pngBytes),
         quality: 90,
         name: ("canvas$i"));
+    print(result);
+  }
+
+  Future<void> saveImageWithBg() async {
+    final RenderRepaintBoundary boundary = _TransparentGlobalkey.currentContext!
+        .findRenderObject() as RenderRepaintBoundary;
+    ui.Image image = await boundary.toImage();
+    ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+    //Request Permissions
+    if (!(await Permission.storage.status.isGranted))
+      await Permission.storage.request();
+    int randomName = Random().nextInt(30);
+    final result = await ImageGallerySaver.saveImage(
+        Uint8List.fromList(pngBytes),
+        quality: 90,
+        name: ("canvas$randomName"));
     print(result);
   }
 
@@ -111,7 +132,8 @@ class _NotesAppState extends State<NotesApp> {
                   onPressed: () {
                     setState(() {
                       i = i + 1;
-                      save();
+                      saveTransparentImage();
+                      saveImageWithBg();
                     });
                   },
                   icon: FaIcon(
@@ -130,200 +152,203 @@ class _NotesAppState extends State<NotesApp> {
             icon: Icon(Icons.arrow_back),
           ),
         ),
-        body: Container(
-          decoration: BoxDecoration(
-            // image: DecorationImage(
-            //   image: AssetImage(
-            //     'assets/fourlines.png',
-            //   ),
-            //   fit: BoxFit.fill,
-            // ),
-          ),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  Flexible(
-                    child: RepaintBoundary(
-                      key: _globalkey,
-                      child: WhiteBoard(
-                        backgroundColor: Colors.transparent,
-                        controller: whiteBoardController,
-                        isErasing: erasing,
-                        onConvertImage: (value) {},
-                        strokeColor: palette[paletteColorIndex],
-                        strokeWidth: stroke[strokeSizeIndex],
+        body: RepaintBoundary(
+          key: _WithBackgroungGlobalkey,
+          child: Container(
+            decoration: BoxDecoration(
+                // image: DecorationImage(
+                //   image: AssetImage(
+                //     'assets/fourlines.png',
+                //   ),
+                //   fit: BoxFit.fill,
+                // ),
+                ),
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    Flexible(
+                      child: RepaintBoundary(
+                        key: _TransparentGlobalkey,
+                        child: WhiteBoard(
+                          backgroundColor: Colors.transparent,
+                          controller: whiteBoardController,
+                          isErasing: erasing,
+                          onConvertImage: (value) {},
+                          strokeColor: palette[paletteColorIndex],
+                          strokeWidth: stroke[strokeSizeIndex],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 150,
-                right: 3,
-                child: Container(
-                  width: 20,
-                  padding: EdgeInsets.zero,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue,
-                  ),
-                  child: IconButton(
-                    iconSize: 18,
+                  ],
+                ),
+                Positioned(
+                  top: 150,
+                  right: 3,
+                  child: Container(
+                    width: 20,
                     padding: EdgeInsets.zero,
-                    onPressed: () {
-                      setState(() {
-                        isVisible = !isVisible;
-                      });
-                    },
-                    icon: Icon(
-                      Icons.arrow_right,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.blue,
                     ),
-                    color: Colors.white,
+                    child: IconButton(
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        setState(() {
+                          isVisible = !isVisible;
+                        });
+                      },
+                      icon: Icon(
+                        Icons.arrow_right,
+                      ),
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
-              AnimatedPositioned(
-                curve: Curves.fastOutSlowIn,
-                duration: Duration(milliseconds: 500),
-                right: isVisible ? 10 : -80,
-                top: 20,
-                child: Container(
-                  margin: EdgeInsets.all(8),
-                  decoration:
-                      BoxDecoration(borderRadius: BorderRadius.circular(10)),
-                  child: Column(
-                    children: [
-                      //1
-                      Container(
-                        // margin: EdgeInsets.only(left: 15),
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: Colors.transparent,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                if (erasing == true) {
+                AnimatedPositioned(
+                  curve: Curves.fastOutSlowIn,
+                  duration: Duration(milliseconds: 500),
+                  right: isVisible ? 10 : -80,
+                  top: 20,
+                  child: Container(
+                    margin: EdgeInsets.all(8),
+                    decoration:
+                        BoxDecoration(borderRadius: BorderRadius.circular(10)),
+                    child: Column(
+                      children: [
+                        //1
+                        Container(
+                          // margin: EdgeInsets.only(left: 15),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.transparent,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (erasing == true) {
+                                    erase();
+                                  } else {
+                                    pencilStrokeChange();
+                                  }
+                                },
+                                child: FaIcon(
+                                  FontAwesomeIcons.pencilAlt,
+                                  color: Colors.grey[850],
+                                  size: 16 + stroke[strokeSizeIndex],
+                                ),
+                              ),
+                              SizedBox(
+                                height: 15,
+                              ),
+                              //2
+                              GestureDetector(
+                                onTap: () {
+                                  paletteColorChange();
+                                },
+                                child: FaIcon(
+                                  FontAwesomeIcons.palette,
+                                  color: palette[paletteColorIndex],
+                                  size: 25,
+                                ),
+                              ),
+                              SizedBox(
+                                height: 15,
+                              ),
+                              //3
+                              GestureDetector(
+                                onTap: () {
                                   erase();
-                                } else {
-                                  pencilStrokeChange();
-                                }
-                              },
-                              child: FaIcon(
-                                FontAwesomeIcons.pencilAlt,
-                                color: Colors.grey[850],
-                                size: 16 + stroke[strokeSizeIndex],
+                                },
+                                child: FaIcon(
+                                  FontAwesomeIcons.eraser,
+                                  color: Colors.green,
+                                  size: 25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        //4
+                        Column(
+                          children: [
+                            SizedBox(
+                              height: 10,
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                tooltip: "Undo",
+                                onPressed: () {
+                                  whiteBoardController.undo();
+                                },
+                                icon: FaIcon(
+                                  FontAwesomeIcons.undo,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
                               ),
                             ),
                             SizedBox(
                               height: 15,
                             ),
-                            //2
-                            GestureDetector(
-                              onTap: () {
-                                paletteColorChange();
-                              },
-                              child: FaIcon(
-                                FontAwesomeIcons.palette,
-                                color: palette[paletteColorIndex],
-                                size: 25,
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                tooltip: "Redo",
+                                onPressed: () {
+                                  whiteBoardController.redo();
+                                },
+                                icon: FaIcon(
+                                  FontAwesomeIcons.redo,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
                               ),
                             ),
                             SizedBox(
                               height: 15,
                             ),
-                            //3
-                            GestureDetector(
-                              onTap: () {
-                                erase();
-                              },
-                              child: FaIcon(
-                                FontAwesomeIcons.eraser,
-                                color: Colors.green,
-                                size: 25,
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                shape: BoxShape.circle,
                               ),
+                              child: IconButton(
+                                tooltip: "Clear",
+                                onPressed: () {
+                                  whiteBoardController.clear();
+                                },
+                                icon: FaIcon(
+                                  FontAwesomeIcons.timesCircle,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              height: 20,
                             ),
                           ],
                         ),
-                      ),
-                      //4
-                      Column(
-                        children: [
-                          SizedBox(
-                            height: 10,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              tooltip: "Undo",
-                              onPressed: () {
-                                whiteBoardController.undo();
-                              },
-                              icon: FaIcon(
-                                FontAwesomeIcons.undo,
-                                color: Colors.black,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 15,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              tooltip: "Redo",
-                              onPressed: () {
-                                whiteBoardController.redo();
-                              },
-                              icon: FaIcon(
-                                FontAwesomeIcons.redo,
-                                color: Colors.black,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 15,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              tooltip: "Clear",
-                              onPressed: () {
-                                whiteBoardController.clear();
-                              },
-                              icon: FaIcon(
-                                FontAwesomeIcons.timesCircle,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 20,
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
